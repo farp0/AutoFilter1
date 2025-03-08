@@ -3,6 +3,8 @@ import random
 import shutil
 from pyrogram import Client, filters, enums
 from yt_dlp import YoutubeDL
+from pyrogram.types import InputMediaAudio
+from spleeter.separator import Separator
 
 async def download_songs(query, download_directory="."):
     query = f"{query} Lyrics".replace(":", "").replace("\"", "")
@@ -69,3 +71,30 @@ async def song(_, message):
             return await k.delete()
         except:
             pass
+
+# Create a function to remove vocals using Spleeter
+def remove_vocals(input_file_path):
+    separator = Separator('spleeter:2stems')  # 2 stems: vocals and accompaniment
+    output_path = "output/"
+    os.makedirs(output_path, exist_ok=True)
+    output_file = os.path.join(output_path, "no_vocals.wav")
+    
+    separator.separate_to_file(input_file_path, output_path)
+    
+    return output_file
+
+# Command handler to remove vocals from the song
+@app.on_message(filters.command("rm_vocal") & filters.audio)
+async def rm_vocal(client, message):
+    # Download the audio file
+    audio_file = await message.download()
+    
+    # Remove vocals
+    output_file = remove_vocals(audio_file)
+    
+    # Send the processed file back to the user
+    await message.reply_audio(output_file, caption="Here's your song without vocals.")
+    
+    # Clean up the files
+    os.remove(audio_file)
+    os.remove(output_file)
